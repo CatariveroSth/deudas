@@ -14,7 +14,7 @@
 </style>
 <script>
   /* ------------------------------------------------------------
-     1)  "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"
+     1) "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"
      ------------------------------------------------------------ */
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv";
 
@@ -58,7 +58,7 @@
     display:flex;
     align-items:flex-start;
     justify-content:center;
-    padding:40px 16px;
+    padding:40px 24px;
   }
   h1,h2,.stamp,.brand{font-family:"Special Elite", monospace;}
   .mono{font-family:"IBM Plex Mono", monospace;}
@@ -148,7 +148,7 @@
   }
 
   /* ---------- LEDGER / DASHBOARD ---------- */
-  #ledger-screen{display:none; width:100%; max-width:900px;}
+  #ledger-screen{display:none; width:100%; max-width:1400px;}
   .ledger-header{
     display:flex;
     justify-content:space-between;
@@ -448,8 +448,8 @@
     return isNaN(n) ? 0 : n;
   }
 
-  function formatCurrency(n){
-    return n.toLocaleString('es-AR', {style:'currency', currency:'USD'});
+  function formatCurrency(n, currency){
+    return n.toLocaleString('es-AR', {style:'currency', currency: currency || 'USD'});
   }
 
   function prepareData(rows, headers){
@@ -468,8 +468,12 @@
       entregado: headers.find(h => /entregado/i.test(h)),
       saldo: headers.find(h => /saldo/i.test(h)) || headers.find(h => /monto/i.test(h)),
     };
-    // Columnas que se muestran como moneda (montos, presupuesto, saldo) sin incluir fechas tipo "Pago Final"
-    COLS.money = headers.filter(h => /monto|presupuesto|saldo/i.test(h) && !/fecha|final/i.test(h));
+    // Columnas en dólares: las que dicen "USD" en el nombre, más el Saldo pendiente (se maneja en USD)
+    COLS.moneyUSD = headers.filter(h => /usd/i.test(h) || /saldo/i.test(h));
+    // Columnas en pesos argentinos: Monto total / Monto pagado (sin "USD" en el nombre), Presupuesto sin USD, etc.
+    COLS.moneyARS = headers.filter(h =>
+      /monto|presupuesto/i.test(h) && !COLS.moneyUSD.includes(h) && !/fecha|final/i.test(h)
+    );
 
     // Nunca mostramos las filas ya saldadas ("Completo") — solo deudas reales
     ALL_ROWS = rows.filter(r => {
@@ -522,9 +526,13 @@
     tbody.innerHTML = rows.map(row => {
       return '<tr>' + HEADERS.map(h => {
         const val = row[h] ?? '';
-        if(COLS.money.includes(h)){
+        if(COLS.moneyUSD.includes(h)){
           const n = parseAmount(val);
-          return `<td class="amount">${formatCurrency(n)}</td>`;
+          return `<td class="amount">${formatCurrency(n, 'USD')}</td>`;
+        }
+        if(COLS.moneyARS.includes(h)){
+          const n = parseAmount(val);
+          return `<td class="amount">${formatCurrency(n, 'ARS')}</td>`;
         }
         if(h === COLS.estado){
           const v = String(val).toLowerCase();
