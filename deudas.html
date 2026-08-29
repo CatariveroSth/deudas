@@ -348,7 +348,7 @@
     stateMsg.className = '';
     stateMsg.textContent = 'Cargando datos…';
 
-    if(!CSV_URL || CSV_URL.indexOf('https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv') !== -1){
+    if(!CSV_URL || CSV_URL.indexOf('PEGA_AQUI') !== -1){
       stateMsg.className = 'error';
       stateMsg.textContent = 'Falta configurar CSV_URL con el link de tu Google Sheet publicado.';
       return;
