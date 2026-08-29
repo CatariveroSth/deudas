@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Libro de Deudas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  /* ============================================================
+     CONFIGURACIÓN — EDITÁ SOLO ESTA SECCIÓN
+     ============================================================ */
+</style>
+<script>
+  /* ------------------------------------------------------------
+     1) https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv
+     ------------------------------------------------------------ */
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv";
+
+  /* ------------------------------------------------------------
+     2) Usuarios permitidos. Agregá los que necesites.
+        OJO: esto NO es seguridad real, ver aviso en el chat.
+     ------------------------------------------------------------ */
+  const USUARIOS = [
+    { user: "ventas", pass: "Sthal2026" },
+    { user: "gerencia", pass: "Sthal2026" }
+  ];
+</script>
+<style>
+  :root{
+    --paper: #E7EDE2;
+    --paper-line: #C3D0BA;
+    --ink: #1F2E23;
+    --ink-soft: #4B5C4F;
+    --brass: #A9803F;
+    --brass-dark: #7C5E2F;
+    --red: #A63D33;
+    --green-ok: #3E6B4F;
+    --card: #F1F5EC;
+    --shadow: rgba(31,46,35,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 34px,
+        var(--paper-line) 34px,
+        var(--paper-line) 35px
+      ),
+      var(--paper);
+    font-family:"IBM Plex Sans", sans-serif;
+    color:var(--ink);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+  }
+  h1,h2,.stamp,.brand{font-family:"Special Elite", monospace;}
+  .mono{font-family:"IBM Plex Mono", monospace;}
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{
+    width:100%;
+    max-width:380px;
+    margin-top:6vh;
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:36px 32px 32px;
+    box-shadow:0 10px 30px var(--shadow);
+    position:relative;
+  }
+  .stamp-badge{
+    position:absolute;
+    top:-18px;
+    right:-14px;
+    transform:rotate(8deg);
+    background:transparent;
+    border:2px solid var(--red);
+    color:var(--red);
+    font-family:"Special Elite", monospace;
+    font-size:11px;
+    letter-spacing:1px;
+    padding:6px 10px;
+    border-radius:6px;
+    opacity:0.85;
+  }
+  .brand{
+    font-size:22px;
+    color:var(--ink);
+    margin:0 0 4px;
+  }
+  .subtitle{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0 0 28px;
+  }
+  label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--ink-soft);
+    margin:16px 0 6px;
+  }
+  input[type=text], input[type=password]{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    border-radius:3px;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:14px;
+    color:var(--ink);
+    outline:none;
+  }
+  input:focus{
+    border-color:var(--brass);
+    box-shadow:0 0 0 3px rgba(169,128,63,0.18);
+  }
+  button{
+    cursor:pointer;
+    border:none;
+    font-family:"Special Elite", monospace;
+    letter-spacing:0.04em;
+  }
+  #btn-login{
+    width:100%;
+    margin-top:24px;
+    padding:12px;
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:3px;
+    font-size:14px;
+    transition:background .15s ease;
+  }
+  #btn-login:hover{background:var(--green-ok);}
+  #login-error{
+    color:var(--red);
+    font-size:12.5px;
+    margin-top:12px;
+    min-height:16px;
+  }
+
+  /* ---------- LEDGER / DASHBOARD ---------- */
+  #ledger-screen{display:none; width:100%; max-width:900px;}
+  .ledger-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom:3px double var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+  }
+  .ledger-title h1{font-size:24px; margin:0 0 4px;}
+  .ledger-title .who{font-size:12.5px; color:var(--ink-soft);}
+  .actions{display:flex; gap:10px; align-items:center;}
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--ink);
+    color:var(--ink);
+    padding:8px 14px;
+    border-radius:3px;
+    font-size:12px;
+  }
+  .btn-ghost:hover{background:var(--ink); color:var(--paper);}
+
+  .totals{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:22px;
+  }
+  .total-card{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:14px 20px;
+    min-width:160px;
+    position:relative;
+  }
+  .total-card .label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft);}
+  .total-card .value{font-size:22px; margin-top:4px;}
+  .total-card.balance .value{color:var(--red);}
+
+  .table-wrap{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    overflow-x:auto;
+    box-shadow:0 6px 18px var(--shadow);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  thead th{
+    text-align:left;
+    font-family:"IBM Plex Mono", monospace;
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--ink);
+    border-bottom:2px solid var(--ink);
+    padding:12px 16px;
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:11px 16px;
+    border-bottom:1px solid var(--paper-line);
+    color:var(--ink);
+  }
+  tbody tr:hover{background:rgba(169,128,63,0.08);}
+  .amount{font-family:"IBM Plex Mono", monospace; text-align:right; white-space:nowrap;}
+  .tag{
+    display:inline-block;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    border:1px solid currentColor;
+  }
+  .tag.ok{color:var(--green-ok);}
+  .tag.pending{color:var(--red);}
+
+  #state-msg{
+    text-align:center;
+    padding:40px 20px;
+    color:var(--ink-soft);
+    font-size:14px;
+  }
+  #state-msg.error{color:var(--red);}
+  footer{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:18px;
+  }
+
+  @media (max-width:520px){
+    #login-screen{padding:28px 20px;}
+    .ledger-header{flex-direction:column; align-items:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ PANTALLA DE LOGIN ============ -->
+  <div id="login-screen">
+    <div class="stamp-badge">ACCESO<br>RESTRINGIDO</div>
+    <h1 class="brand">Libro de Deudas</h1>
+    <p class="subtitle">Ingresá tus credenciales para ver el detalle.</p>
+
+    <label for="user">Usuario</label>
+    <input type="text" id="user" autocomplete="username">
+
+    <label for="pass">Contraseña</label>
+    <input type="password" id="pass" autocomplete="current-password">
+
+    <button id="btn-login">Ingresar</button>
+    <div id="login-error"></div>
+  </div>
+
+  <!-- ============ PANTALLA PRINCIPAL ============ -->
+  <div id="ledger-screen">
+    <div class="ledger-header">
+      <div class="ledger-title">
+        <h1>Libro de Deudas</h1>
+        <div class="who">Conectado como <span id="who-user" class="mono"></span></div>
+      </div>
+      <div class="actions">
+        <button class="btn-ghost" id="btn-refresh">Actualizar</button>
+        <button class="btn-ghost" id="btn-logout">Salir</button>
+      </div>
+    </div>
+
+    <div class="totals" id="totals"></div>
+
+    <div class="table-wrap">
+      <div id="state-msg">Cargando datos…</div>
+      <table id="data-table" style="display:none;">
+        <thead><tr id="thead-row"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <footer>Última actualización: <span id="last-update" class="mono">—</span></footer>
+  </div>
+
+<script>
+  const loginScreen = document.getElementById('login-screen');
+  const ledgerScreen = document.getElementById('ledger-screen');
+  const loginError = document.getElementById('login-error');
+
+  // Login persiste solo durante la pestaña abierta (sessionStorage)
+  function checkSession(){
+    const saved = sessionStorage.getItem('deudas_user');
+    if(saved){ showLedger(saved); }
+  }
+
+  document.getElementById('btn-login').addEventListener('click', doLogin);
+  document.getElementById('pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+  function doLogin(){
+    const u = document.getElementById('user').value.trim();
+    const p = document.getElementById('pass').value;
+    const match = USUARIOS.find(x => x.user === u && x.pass === p);
+    if(match){
+      sessionStorage.setItem('deudas_user', u);
+      loginError.textContent = '';
+      showLedger(u);
+    } else {
+      loginError.textContent = 'Usuario o contraseña incorrectos.';
+    }
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', ()=>{
+    sessionStorage.removeItem('deudas_user');
+    ledgerScreen.style.display = 'none';
+    loginScreen.style.display = 'block';
+    document.getElementById('user').value='';
+    document.getElementById('pass').value='';
+  });
+
+  document.getElementById('btn-refresh').addEventListener('click', loadData);
+
+  function showLedger(username){
+    loginScreen.style.display = 'none';
+    ledgerScreen.style.display = 'block';
+    document.getElementById('who-user').textContent = username;
+    loadData();
+  }
+
+  function loadData(){
+    const stateMsg = document.getElementById('state-msg');
+    const table = document.getElementById('data-table');
+    table.style.display = 'none';
+    stateMsg.style.display = 'block';
+    stateMsg.className = '';
+    stateMsg.textContent = 'Cargando datos…';
+
+    if(!CSV_URL || CSV_URL.indexOf('https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv') !== -1){
+      stateMsg.className = 'error';
+      stateMsg.textContent = 'Falta configurar CSV_URL con el link de tu Google Sheet publicado.';
+      return;
+    }
+
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results){
+        renderTable(results.data, results.meta.fields || []);
+      },
+      error: function(err){
+        stateMsg.className = 'error';
+        stateMsg.textContent = 'No se pudo cargar el Google Sheet. Verificá que esté publicado como CSV y que la URL sea correcta.';
+        console.error(err);
+      }
+    });
+  }
+
+  function parseAmount(raw){
+    if(raw === undefined || raw === null) return NaN;
+    const cleaned = String(raw).replace(/[^0-9,.\-]/g,'').replace(/\.(?=.*\.)/g,'').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? NaN : n;
+  }
+
+  function renderTable(rows, headers){
+    const stateMsg = document.getElementById('state-msg');
+    const table = document.getElementById('data-table');
+    const theadRow = document.getElementById('thead-row');
+    const tbody = document.getElementById('tbody');
+    const totalsEl = document.getElementById('totals');
+
+    if(!rows.length || !headers.length){
+      stateMsg.className = 'error';
+      stateMsg.textContent = 'El Google Sheet está vacío o no tiene encabezados en la primera fila.';
+      return;
+    }
+
+    // Detectar columna de monto y de estado, de forma flexible
+    const amountCol = headers.find(h => /monto|importe|deuda|saldo|total/i.test(h));
+    const statusCol = headers.find(h => /estado|status/i.test(h));
+
+    // Encabezados
+    theadRow.innerHTML = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+
+    // Filas
+    tbody.innerHTML = rows.map(row => {
+      return '<tr>' + headers.map(h => {
+        const val = row[h] ?? '';
+        if(h === amountCol){
+          const n = parseAmount(val);
+          const display = isNaN(n) ? escapeHtml(val) : n.toLocaleString('es-AR', {style:'currency', currency:'ARS'});
+          return `<td class="amount">${display}</td>`;
+        }
+        if(h === statusCol){
+          const v = String(val).toLowerCase();
+          const isOk = /pagad|saldad|ok/.test(v);
+          const isPending = /pendient|vencid|deb/.test(v);
+          const cls = isOk ? 'ok' : (isPending ? 'pending' : '');
+          return `<td>${cls ? `<span class="tag ${cls}">${escapeHtml(val)}</span>` : escapeHtml(val)}</td>`;
+        }
+        return `<td>${escapeHtml(val)}</td>`;
+      }).join('') + '</tr>';
+    }).join('');
+
+    // Totales
+    totalsEl.innerHTML = '';
+    const countCard = makeTotalCard('Registros', rows.length, false);
+    totalsEl.appendChild(countCard);
+
+    if(amountCol){
+      const total = rows.reduce((sum, r) => {
+        const n = parseAmount(r[amountCol]);
+        return sum + (isNaN(n) ? 0 : n);
+      }, 0);
+      const totalDisplay = total.toLocaleString('es-AR', {style:'currency', currency:'ARS'});
+      totalsEl.appendChild(makeTotalCard('Total ' + amountCol, totalDisplay, true));
+    }
+
+    if(statusCol){
+      const pending = rows.filter(r => /pendient|vencid|deb/i.test(r[statusCol] || '')).length;
+      totalsEl.appendChild(makeTotalCard('Pendientes', pending, false));
+    }
+
+    stateMsg.style.display = 'none';
+    table.style.display = 'table';
+    document.getElementById('last-update').textContent = new Date().toLocaleString('es-AR');
+  }
+
+  function makeTotalCard(label, value, isBalance){
+    const div = document.createElement('div');
+    div.className = 'total-card' + (isBalance ? ' balance' : '');
+    div.innerHTML = `<div class="label">${escapeHtml(label)}</div><div class="value mono">${value}</div>`;
+    return div;
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  checkSession();
+</script>
+</body>
+</html>
