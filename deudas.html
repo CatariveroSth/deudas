@@ -14,9 +14,9 @@
 </style>
 <script>
   /* ------------------------------------------------------------
-     1) "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"
+     1)  "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"
      ------------------------------------------------------------ */
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv";
+  const CSV_URL = " "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"";
 
   /* ------------------------------------------------------------
      2) Usuarios permitidos. Agregá los que necesites.
@@ -172,6 +172,45 @@
   }
   .btn-ghost:hover{background:var(--ink); color:var(--paper);}
 
+  .filters{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-bottom:20px;
+    padding:14px 16px;
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+  }
+  .filter-group{display:flex; flex-direction:column; gap:4px;}
+  .filter-group label{margin:0;}
+  .filter-group input, .filter-group select{
+    padding:9px 10px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    border-radius:3px;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:13px;
+    color:var(--ink);
+    outline:none;
+    min-width:180px;
+  }
+  .filter-group input:focus, .filter-group select:focus{
+    border-color:var(--brass);
+    box-shadow:0 0 0 3px rgba(169,128,63,0.18);
+  }
+  .btn-clear{
+    background:transparent;
+    border:1px solid var(--ink-soft);
+    color:var(--ink-soft);
+    padding:9px 12px;
+    border-radius:3px;
+    font-size:12px;
+    height:fit-content;
+  }
+  .btn-clear:hover{border-color:var(--ink); color:var(--ink);}
+
   .totals{
     display:flex;
     gap:14px;
@@ -231,6 +270,7 @@
   }
   .tag.ok{color:var(--green-ok);}
   .tag.pending{color:var(--red);}
+  .tag.partial{color:var(--brass-dark);}
 
   #state-msg{
     text-align:center;
@@ -283,6 +323,23 @@
       </div>
     </div>
 
+    <div class="filters">
+      <div class="filter-group">
+        <label for="filter-cliente">Cliente</label>
+        <input type="text" id="filter-cliente" placeholder="Buscar por cliente…" list="lista-clientes">
+        <datalist id="lista-clientes"></datalist>
+      </div>
+      <div class="filter-group">
+        <label for="filter-entregado">Entrega</label>
+        <select id="filter-entregado">
+          <option value="todos">Todos</option>
+          <option value="entregado">Entregados</option>
+          <option value="no-entregado">No entregados</option>
+        </select>
+      </div>
+      <button class="btn-clear" id="btn-clear-filters">Limpiar filtros</button>
+    </div>
+
     <div class="totals" id="totals"></div>
 
     <div class="table-wrap">
@@ -332,6 +389,18 @@
   });
 
   document.getElementById('btn-refresh').addEventListener('click', loadData);
+  document.getElementById('filter-cliente').addEventListener('input', applyFilters);
+  document.getElementById('filter-entregado').addEventListener('change', applyFilters);
+  document.getElementById('btn-clear-filters').addEventListener('click', () => {
+    document.getElementById('filter-cliente').value = '';
+    document.getElementById('filter-entregado').value = 'todos';
+    applyFilters();
+  });
+
+  // Estado en memoria: todas las filas ya parseadas (sin las "Completo"), headers y columnas detectadas
+  let ALL_ROWS = [];
+  let HEADERS = [];
+  let COLS = {};
 
   function showLedger(username){
     loginScreen.style.display = 'none';
@@ -359,7 +428,7 @@
       header: true,
       skipEmptyLines: true,
       complete: function(results){
-        renderTable(results.data, results.meta.fields || []);
+        prepareData(results.data, results.meta.fields || []);
       },
       error: function(err){
         stateMsg.className = 'error';
@@ -369,19 +438,22 @@
     });
   }
 
+  // Formato argentino: punto = separador de miles, coma = decimal. "-" o vacío = 0.
   function parseAmount(raw){
-    if(raw === undefined || raw === null) return NaN;
-    const cleaned = String(raw).replace(/[^0-9,.\-]/g,'').replace(/\.(?=.*\.)/g,'').replace(',', '.');
+    if(raw === undefined || raw === null) return 0;
+    const s = String(raw).trim();
+    if(s === '' || s === '-') return 0;
+    const cleaned = s.replace(/[^0-9,.\-]/g,'').replace(/\./g,'').replace(',', '.');
     const n = parseFloat(cleaned);
-    return isNaN(n) ? NaN : n;
+    return isNaN(n) ? 0 : n;
   }
 
-  function renderTable(rows, headers){
+  function formatCurrency(n){
+    return n.toLocaleString('es-AR', {style:'currency', currency:'USD'});
+  }
+
+  function prepareData(rows, headers){
     const stateMsg = document.getElementById('state-msg');
-    const table = document.getElementById('data-table');
-    const theadRow = document.getElementById('thead-row');
-    const tbody = document.getElementById('tbody');
-    const totalsEl = document.getElementById('totals');
 
     if(!rows.length || !headers.length){
       stateMsg.className = 'error';
@@ -389,55 +461,113 @@
       return;
     }
 
-    // Detectar columna de monto y de estado, de forma flexible
-    const amountCol = headers.find(h => /monto|importe|deuda|saldo|total/i.test(h));
-    const statusCol = headers.find(h => /estado|status/i.test(h));
+    HEADERS = headers;
+    COLS = {
+      cliente: headers.find(h => /cliente/i.test(h)),
+      estado: headers.find(h => /estado/i.test(h)),
+      entregado: headers.find(h => /entregado/i.test(h)),
+      saldo: headers.find(h => /saldo/i.test(h)) || headers.find(h => /monto/i.test(h)),
+    };
+    // Columnas que se muestran como moneda (montos, presupuesto, saldo) sin incluir fechas tipo "Pago Final"
+    COLS.money = headers.filter(h => /monto|presupuesto|saldo/i.test(h) && !/fecha|final/i.test(h));
+
+    // Nunca mostramos las filas ya saldadas ("Completo") — solo deudas reales
+    ALL_ROWS = rows.filter(r => {
+      const estado = String(r[COLS.estado] || '').trim().toLowerCase();
+      return estado !== 'completo';
+    });
+
+    // Cargar el datalist de clientes para autocompletar el filtro
+    if(COLS.cliente){
+      const clientes = [...new Set(ALL_ROWS.map(r => r[COLS.cliente]).filter(Boolean))].sort();
+      document.getElementById('lista-clientes').innerHTML =
+        clientes.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+    }
+
+    applyFilters();
+    document.getElementById('last-update').textContent = new Date().toLocaleString('es-AR');
+  }
+
+  function applyFilters(){
+    const clienteQ = document.getElementById('filter-cliente').value.trim().toLowerCase();
+    const entregaQ = document.getElementById('filter-entregado').value;
+
+    const filtered = ALL_ROWS.filter(r => {
+      if(clienteQ && COLS.cliente){
+        const c = String(r[COLS.cliente] || '').toLowerCase();
+        if(!c.includes(clienteQ)) return false;
+      }
+      if(entregaQ !== 'todos' && COLS.entregado){
+        const entregado = String(r[COLS.entregado] || '').trim() !== '';
+        if(entregaQ === 'entregado' && !entregado) return false;
+        if(entregaQ === 'no-entregado' && entregado) return false;
+      }
+      return true;
+    });
+
+    renderTable(filtered);
+  }
+
+  function renderTable(rows){
+    const table = document.getElementById('data-table');
+    const theadRow = document.getElementById('thead-row');
+    const tbody = document.getElementById('tbody');
+    const totalsEl = document.getElementById('totals');
+    const stateMsg = document.getElementById('state-msg');
 
     // Encabezados
-    theadRow.innerHTML = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+    theadRow.innerHTML = HEADERS.map(h => `<th>${escapeHtml(h)}</th>`).join('');
 
     // Filas
     tbody.innerHTML = rows.map(row => {
-      return '<tr>' + headers.map(h => {
+      return '<tr>' + HEADERS.map(h => {
         const val = row[h] ?? '';
-        if(h === amountCol){
+        if(COLS.money.includes(h)){
           const n = parseAmount(val);
-          const display = isNaN(n) ? escapeHtml(val) : n.toLocaleString('es-AR', {style:'currency', currency:'ARS'});
-          return `<td class="amount">${display}</td>`;
+          return `<td class="amount">${formatCurrency(n)}</td>`;
         }
-        if(h === statusCol){
+        if(h === COLS.estado){
           const v = String(val).toLowerCase();
-          const isOk = /pagad|saldad|ok/.test(v);
-          const isPending = /pendient|vencid|deb/.test(v);
-          const cls = isOk ? 'ok' : (isPending ? 'pending' : '');
-          return `<td>${cls ? `<span class="tag ${cls}">${escapeHtml(val)}</span>` : escapeHtml(val)}</td>`;
+          let cls = 'pending';
+          if(/anticipo/.test(v)) cls = 'partial';
+          return `<td><span class="tag ${cls}">${escapeHtml(val)}</span></td>`;
         }
         return `<td>${escapeHtml(val)}</td>`;
       }).join('') + '</tr>';
     }).join('');
 
-    // Totales
+    // ---- Insights (se recalculan según los filtros aplicados) ----
     totalsEl.innerHTML = '';
-    const countCard = makeTotalCard('Registros', rows.length, false);
-    totalsEl.appendChild(countCard);
+    totalsEl.appendChild(makeTotalCard('Registros', rows.length, false));
 
-    if(amountCol){
-      const total = rows.reduce((sum, r) => {
-        const n = parseAmount(r[amountCol]);
-        return sum + (isNaN(n) ? 0 : n);
-      }, 0);
-      const totalDisplay = total.toLocaleString('es-AR', {style:'currency', currency:'ARS'});
-      totalsEl.appendChild(makeTotalCard('Total ' + amountCol, totalDisplay, true));
+    if(COLS.saldo){
+      const sumSaldo = list => list.reduce((sum, r) => sum + parseAmount(r[COLS.saldo]), 0);
+
+      const totalPendiente = sumSaldo(rows);
+      totalsEl.appendChild(makeTotalCard('Deuda total pendiente', formatCurrency(totalPendiente), true));
+
+      if(COLS.entregado){
+        const entregadas = rows.filter(r => String(r[COLS.entregado] || '').trim() !== '');
+        const noEntregadas = rows.filter(r => String(r[COLS.entregado] || '').trim() === '');
+
+        const pendienteEntregado = sumSaldo(entregadas);
+        totalsEl.appendChild(makeTotalCard('Por cobrar (ya entregado)', formatCurrency(pendienteEntregado), true));
+
+        const cobranzaFutura = sumSaldo(noEntregadas);
+        totalsEl.appendChild(makeTotalCard('Cobranza a futuro (sin entregar)', formatCurrency(cobranzaFutura), false));
+      }
     }
 
-    if(statusCol){
-      const pending = rows.filter(r => /pendient|vencid|deb/i.test(r[statusCol] || '')).length;
-      totalsEl.appendChild(makeTotalCard('Pendientes', pending, false));
+    if(!rows.length){
+      stateMsg.className = '';
+      stateMsg.style.display = 'block';
+      stateMsg.textContent = 'No hay deudas que coincidan con este filtro.';
+      table.style.display = 'none';
+      return;
     }
 
     stateMsg.style.display = 'none';
     table.style.display = 'table';
-    document.getElementById('last-update').textContent = new Date().toLocaleString('es-AR');
   }
 
   function makeTotalCard(label, value, isBalance){
