@@ -28,8 +28,10 @@
         OJO: esto NO es seguridad real, ver aviso en el chat.
      ------------------------------------------------------------ */
   const USUARIOS = [
-    { user: "ventas", pass: "Sthal2026" },
-    { user: "gerencia", pass: "Sthal2026" }
+    { user: "ventas", pass: "Sthal2026", vistas: ["ventas", "facturas"] },
+    { user: "gerencia", pass: "Sthal2026", vistas: ["ventas", "facturas"]  },
+    { user: "Fede", pass: "Facturas2026", vistas: ["facturas"] },
+    { user: "Maria", pass: "Facturas2026", vistas: ["facturas"] }
   ];
 </script>
 <style>
