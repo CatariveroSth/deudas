@@ -34,9 +34,9 @@
      ------------------------------------------------------------ */
   const USUARIOS = [
     { user: "ventas", pass: "Sthal2026", vistas: ["ventas", "facturas"] },
-    { user: "gerencia", pass: "Sthal2026", vistas: ["ventas", "facturas"]  },
-    { user: "Fede", pass: "Facturas2026", vistas: ["facturas"] },
-    { user: "Maria", pass: "Facturas2026", vistas: ["facturas"] }
+    { user: "gerencia", pass: "Sthal2026", vistas: ["ventas", "facturas"] },
+    { user: "fede", pass: "Facturas", vistas: ["facturas"] },
+    { user: "maria", pass: "Facturas", vistas: ["facturas"] }
   ];
 </script>
 <style>
@@ -448,7 +448,11 @@
   // Login persiste solo durante la pestaña abierta (sessionStorage)
   function checkSession(){
     const saved = sessionStorage.getItem('deudas_user');
-    if(saved){ showLedger(saved); }
+    const vistasSaved = sessionStorage.getItem('deudas_vistas');
+    if(saved){
+      const vistas = vistasSaved ? JSON.parse(vistasSaved) : ['ventas', 'facturas'];
+      showLedger(saved, vistas);
+    }
   }
 
   document.getElementById('btn-login').addEventListener('click', doLogin);
@@ -459,9 +463,11 @@
     const p = document.getElementById('pass').value;
     const match = USUARIOS.find(x => x.user === u && x.pass === p);
     if(match){
+      const vistas = match.vistas || ['ventas', 'facturas'];
       sessionStorage.setItem('deudas_user', u);
+      sessionStorage.setItem('deudas_vistas', JSON.stringify(vistas));
       loginError.textContent = '';
-      showLedger(u);
+      showLedger(u, vistas);
     } else {
       loginError.textContent = 'Usuario o contraseña incorrectos.';
     }
@@ -469,6 +475,7 @@
 
   document.getElementById('btn-logout').addEventListener('click', ()=>{
     sessionStorage.removeItem('deudas_user');
+    sessionStorage.removeItem('deudas_vistas');
     ledgerScreen.style.display = 'none';
     loginScreen.style.display = 'block';
     document.getElementById('user').value='';
@@ -476,8 +483,9 @@
   });
 
   document.getElementById('btn-refresh').addEventListener('click', () => {
-    loadData();
-    if(facturasLoaded) loadFacturas();
+    const vistas = JSON.parse(sessionStorage.getItem('deudas_vistas') || '["ventas","facturas"]');
+    if(vistas.includes('ventas')) loadData();
+    if(vistas.includes('facturas') && facturasLoaded) loadFacturas();
   });
   document.getElementById('filter-cliente').addEventListener('input', applyFilters);
   document.getElementById('filter-entregado').addEventListener('change', applyFilters);
@@ -524,11 +532,33 @@
   let HEADERS = [];
   let COLS = {};
 
-  function showLedger(username){
+  function showLedger(username, vistas){
     loginScreen.style.display = 'none';
     ledgerScreen.style.display = 'block';
     document.getElementById('who-user').textContent = username;
-    loadData();
+
+    const puedeVentas = vistas.includes('ventas');
+    const puedeFacturas = vistas.includes('facturas');
+
+    tabBtnVentas.style.display = puedeVentas ? '' : 'none';
+    tabBtnFacturas.style.display = puedeFacturas ? '' : 'none';
+    // Si solo tiene acceso a una vista, ni siquiera mostramos la barra de pestañas
+    document.querySelector('.tabs').style.display = (puedeVentas && puedeFacturas) ? 'flex' : 'none';
+
+    tabBtnVentas.classList.remove('active');
+    tabBtnFacturas.classList.remove('active');
+
+    if(puedeVentas){
+      tabBtnVentas.classList.add('active');
+      viewVentas.style.display = 'block';
+      viewFacturas.style.display = 'none';
+      loadData();
+    } else if(puedeFacturas){
+      tabBtnFacturas.classList.add('active');
+      viewFacturas.style.display = 'block';
+      viewVentas.style.display = 'none';
+      loadFacturas();
+    }
   }
 
   function loadData(){
