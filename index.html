@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cuentas a cobrar</title>
+<title>Cuentas a Cobrar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -14,9 +14,15 @@
 </style>
 <script>
   /* ------------------------------------------------------------
-     1) "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv"
+     1) https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?gid=1120894021&single=true&output=csv
      ------------------------------------------------------------ */
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?output=csv";
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?gid=1120894021&single=true&output=csv";
+
+  /* ------------------------------------------------------------
+     1b) https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?gid=1159783108&single=true&output=csv
+     ------------------------------------------------------------ */
+  const CSV_URL_FACTURAS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXbQQ1ruT8o29mmjjYTsEQ8RRABHSB8A8hqj0LtBuJzR-xM6dT9_s9NuupFRT8bg/pub?gid=1159783108&single=true&output=csv
+";
 
   /* ------------------------------------------------------------
      2) Usuarios permitidos. Agregá los que necesites.
@@ -172,6 +178,28 @@
   }
   .btn-ghost:hover{background:var(--ink); color:var(--paper);}
 
+  .tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+  }
+  .tab-btn{
+    background:transparent;
+    border:1px solid var(--paper-line);
+    color:var(--ink-soft);
+    padding:9px 16px;
+    border-radius:20px;
+    font-size:12.5px;
+    font-family:"IBM Plex Sans", sans-serif;
+    font-weight:600;
+  }
+  .tab-btn.active{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:var(--paper);
+  }
+  .tab-btn:not(.active):hover{border-color:var(--brass); color:var(--ink);}
+
   .filters{
     display:flex;
     gap:12px;
@@ -297,7 +325,7 @@
   <!-- ============ PANTALLA DE LOGIN ============ -->
   <div id="login-screen">
     <div class="stamp-badge">ACCESO<br>RESTRINGIDO</div>
-    <h1 class="brand">Cuentas a cobrar</h1>
+    <h1 class="brand">Cuentas a Cobrar</h1>
     <p class="subtitle">Ingresá tus credenciales para ver el detalle.</p>
 
     <label for="user">Usuario</label>
@@ -314,7 +342,7 @@
   <div id="ledger-screen">
     <div class="ledger-header">
       <div class="ledger-title">
-        <h1>Cuentas a cobrar</h1>
+        <h1>Cuentas a Cobrar</h1>
         <div class="who">Conectado como <span id="who-user" class="mono"></span></div>
       </div>
       <div class="actions">
@@ -323,31 +351,84 @@
       </div>
     </div>
 
-    <div class="filters">
-      <div class="filter-group">
-        <label for="filter-cliente">Cliente</label>
-        <input type="text" id="filter-cliente" placeholder="Buscar por cliente…" list="lista-clientes">
-        <datalist id="lista-clientes"></datalist>
-      </div>
-      <div class="filter-group">
-        <label for="filter-entregado">Entrega</label>
-        <select id="filter-entregado">
-          <option value="todos">Todos</option>
-          <option value="entregado">Entregados</option>
-          <option value="no-entregado">No entregados</option>
-        </select>
-      </div>
-      <button class="btn-clear" id="btn-clear-filters">Limpiar filtros</button>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-btn-ventas">Ventas</button>
+      <button class="tab-btn" id="tab-btn-facturas">Facturas pendientes de pago</button>
     </div>
 
-    <div class="totals" id="totals"></div>
+    <!-- ============ VISTA: VENTAS ============ -->
+    <div id="view-ventas">
+      <div class="filters">
+        <div class="filter-group">
+          <label for="filter-cliente">Cliente</label>
+          <input type="text" id="filter-cliente" placeholder="Buscar por cliente…" list="lista-clientes">
+          <datalist id="lista-clientes"></datalist>
+        </div>
+        <div class="filter-group">
+          <label for="filter-entregado">Entrega</label>
+          <select id="filter-entregado">
+            <option value="todos">Todos</option>
+            <option value="entregado">Entregados</option>
+            <option value="no-entregado">No entregados</option>
+          </select>
+        </div>
+        <button class="btn-clear" id="btn-clear-filters">Limpiar filtros</button>
+      </div>
 
-    <div class="table-wrap">
-      <div id="state-msg">Cargando datos…</div>
-      <table id="data-table" style="display:none;">
-        <thead><tr id="thead-row"></tr></thead>
-        <tbody id="tbody"></tbody>
-      </table>
+      <div class="totals" id="totals"></div>
+
+      <div class="table-wrap">
+        <div id="state-msg">Cargando datos…</div>
+        <table id="data-table" style="display:none;">
+          <thead><tr id="thead-row"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ VISTA: FACTURAS PENDIENTES DE PAGO ============ -->
+    <div id="view-facturas" style="display:none;">
+      <div class="filters">
+        <div class="filter-group">
+          <label for="filter-cliente-fact">Cliente</label>
+          <input type="text" id="filter-cliente-fact" placeholder="Buscar por cliente…" list="lista-clientes-fact">
+          <datalist id="lista-clientes-fact"></datalist>
+        </div>
+        <div class="filter-group">
+          <label for="filter-responsable">Responsable</label>
+          <select id="filter-responsable">
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-nota">Estado</label>
+          <select id="filter-nota">
+            <option value="todos">Todos</option>
+            <option value="completa">Debe factura completa</option>
+            <option value="saldo">Debe un saldo</option>
+          </select>
+        </div>
+        <button class="btn-clear" id="btn-clear-filters-fact">Limpiar filtros</button>
+      </div>
+
+      <div class="totals" id="totals-fact"></div>
+
+      <div class="table-wrap">
+        <div id="state-msg-fact">Cargando datos…</div>
+        <table id="data-table-fact" style="display:none;">
+          <thead>
+            <tr>
+              <th>Fecha Factura</th>
+              <th>Cliente</th>
+              <th>N° Factura</th>
+              <th>Monto</th>
+              <th>Estado</th>
+              <th>Responsable</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-fact"></tbody>
+        </table>
+      </div>
     </div>
 
     <footer>Última actualización: <span id="last-update" class="mono">—</span></footer>
@@ -388,13 +469,48 @@
     document.getElementById('pass').value='';
   });
 
-  document.getElementById('btn-refresh').addEventListener('click', loadData);
+  document.getElementById('btn-refresh').addEventListener('click', () => {
+    loadData();
+    if(facturasLoaded) loadFacturas();
+  });
   document.getElementById('filter-cliente').addEventListener('input', applyFilters);
   document.getElementById('filter-entregado').addEventListener('change', applyFilters);
   document.getElementById('btn-clear-filters').addEventListener('click', () => {
     document.getElementById('filter-cliente').value = '';
     document.getElementById('filter-entregado').value = 'todos';
     applyFilters();
+  });
+
+  // ---- Pestañas Ventas / Facturas ----
+  const tabBtnVentas = document.getElementById('tab-btn-ventas');
+  const tabBtnFacturas = document.getElementById('tab-btn-facturas');
+  const viewVentas = document.getElementById('view-ventas');
+  const viewFacturas = document.getElementById('view-facturas');
+  let facturasLoaded = false;
+
+  tabBtnVentas.addEventListener('click', () => {
+    tabBtnVentas.classList.add('active');
+    tabBtnFacturas.classList.remove('active');
+    viewVentas.style.display = 'block';
+    viewFacturas.style.display = 'none';
+  });
+
+  tabBtnFacturas.addEventListener('click', () => {
+    tabBtnFacturas.classList.add('active');
+    tabBtnVentas.classList.remove('active');
+    viewVentas.style.display = 'none';
+    viewFacturas.style.display = 'block';
+    if(!facturasLoaded){ loadFacturas(); }
+  });
+
+  document.getElementById('filter-cliente-fact').addEventListener('input', applyFiltersFacturas);
+  document.getElementById('filter-responsable').addEventListener('change', applyFiltersFacturas);
+  document.getElementById('filter-nota').addEventListener('change', applyFiltersFacturas);
+  document.getElementById('btn-clear-filters-fact').addEventListener('click', () => {
+    document.getElementById('filter-cliente-fact').value = '';
+    document.getElementById('filter-responsable').value = 'todos';
+    document.getElementById('filter-nota').value = 'todos';
+    applyFiltersFacturas();
   });
 
   // Estado en memoria: todas las filas ya parseadas (sin las "Completo"), headers y columnas detectadas
@@ -591,6 +707,152 @@
       .replace(/</g,'&lt;')
       .replace(/>/g,'&gt;')
       .replace(/"/g,'&quot;');
+  }
+
+  // ================== VISTA: FACTURAS PENDIENTES DE PAGO ==================
+  let ALL_ROWS_FACT = [];
+  let COLS_FACT = {};
+
+  function loadFacturas(){
+    const stateMsg = document.getElementById('state-msg-fact');
+    const table = document.getElementById('data-table-fact');
+    table.style.display = 'none';
+    stateMsg.style.display = 'block';
+    stateMsg.className = '';
+    stateMsg.textContent = 'Cargando datos…';
+
+    if(!CSV_URL_FACTURAS || CSV_URL_FACTURAS.indexOf('PEGA_AQUI') !== -1){
+      stateMsg.className = 'error';
+      stateMsg.textContent = 'Falta configurar CSV_URL_FACTURAS con el link de la pestaña de facturas publicada.';
+      return;
+    }
+
+    Papa.parse(CSV_URL_FACTURAS, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results){
+        prepareFacturas(results.data, results.meta.fields || []);
+      },
+      error: function(err){
+        stateMsg.className = 'error';
+        stateMsg.textContent = 'No se pudo cargar la hoja de facturas. Verificá que esté publicada como CSV y que la URL sea correcta.';
+        console.error(err);
+      }
+    });
+  }
+
+  function prepareFacturas(rows, headers){
+    const stateMsg = document.getElementById('state-msg-fact');
+    if(!rows.length || !headers.length){
+      stateMsg.className = 'error';
+      stateMsg.textContent = 'La hoja de facturas está vacía o no tiene encabezados en la primera fila.';
+      return;
+    }
+
+    const fechaCol = headers.find(h => /fecha/i.test(h));
+    const clienteCol = headers.find(h => /cliente/i.test(h));
+    const facturaCol = headers.find(h => /factura/i.test(h) && h !== fechaCol);
+    const montoCol = headers.find(h => /monto/i.test(h));
+    const notaCol = headers.find(h => /nota/i.test(h));
+    // Cualquier columna que no sea ninguna de las anteriores se toma como "responsable" (Mari, Fede, Ventas, etc.)
+    const responsableCols = headers.filter(h => ![fechaCol, clienteCol, facturaCol, montoCol, notaCol].includes(h));
+
+    COLS_FACT = { fechaCol, clienteCol, facturaCol, montoCol, notaCol, responsableCols };
+
+    ALL_ROWS_FACT = rows.filter(r => (clienteCol ? String(r[clienteCol] || '').trim() !== '' : true));
+
+    // Datalist de clientes
+    if(clienteCol){
+      const clientes = [...new Set(ALL_ROWS_FACT.map(r => r[clienteCol]).filter(Boolean))].sort();
+      document.getElementById('lista-clientes-fact').innerHTML =
+        clientes.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+    }
+
+    // Poblar el filtro de Responsable dinámicamente
+    const selResp = document.getElementById('filter-responsable');
+    selResp.innerHTML = '<option value="todos">Todos</option>' +
+      responsableCols.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+
+    facturasLoaded = true;
+    applyFiltersFacturas();
+    document.getElementById('last-update').textContent = new Date().toLocaleString('es-AR');
+  }
+
+  function getResponsable(row){
+    const p = COLS_FACT.responsableCols.find(col => String(row[col] || '').trim() !== '');
+    return p || '—';
+  }
+
+  function applyFiltersFacturas(){
+    const clienteQ = document.getElementById('filter-cliente-fact').value.trim().toLowerCase();
+    const respQ = document.getElementById('filter-responsable').value;
+    const notaQ = document.getElementById('filter-nota').value;
+
+    const filtered = ALL_ROWS_FACT.filter(r => {
+      if(clienteQ && COLS_FACT.clienteCol){
+        const c = String(r[COLS_FACT.clienteCol] || '').toLowerCase();
+        if(!c.includes(clienteQ)) return false;
+      }
+      if(respQ !== 'todos' && getResponsable(r) !== respQ) return false;
+      if(notaQ !== 'todos'){
+        const tieneNota = COLS_FACT.notaCol ? String(r[COLS_FACT.notaCol] || '').trim() !== '' : false;
+        if(notaQ === 'completa' && tieneNota) return false;
+        if(notaQ === 'saldo' && !tieneNota) return false;
+      }
+      return true;
+    });
+
+    renderFacturas(filtered);
+  }
+
+  function renderFacturas(rows){
+    const table = document.getElementById('data-table-fact');
+    const tbody = document.getElementById('tbody-fact');
+    const totalsEl = document.getElementById('totals-fact');
+    const stateMsg = document.getElementById('state-msg-fact');
+
+    tbody.innerHTML = rows.map(r => {
+      const nota = COLS_FACT.notaCol ? String(r[COLS_FACT.notaCol] || '').trim() : '';
+      const estadoTag = nota
+        ? `<span class="tag partial">${escapeHtml(nota)}</span>`
+        : `<span class="tag pending">Debe completa</span>`;
+      const monto = parseAmount(r[COLS_FACT.montoCol]);
+      return `<tr>
+        <td>${escapeHtml(r[COLS_FACT.fechaCol] || '')}</td>
+        <td>${escapeHtml(r[COLS_FACT.clienteCol] || '')}</td>
+        <td>${escapeHtml(r[COLS_FACT.facturaCol] || '')}</td>
+        <td class="amount">${formatCurrency(monto, 'ARS')}</td>
+        <td>${estadoTag}</td>
+        <td>${escapeHtml(getResponsable(r))}</td>
+      </tr>`;
+    }).join('');
+
+    // ---- Insights ----
+    totalsEl.innerHTML = '';
+    totalsEl.appendChild(makeTotalCard('Facturas pendientes', rows.length, false));
+
+    const totalMonto = rows.reduce((sum, r) => sum + parseAmount(r[COLS_FACT.montoCol]), 0);
+    totalsEl.appendChild(makeTotalCard('Total pendiente de cobro', formatCurrency(totalMonto, 'ARS'), true));
+
+    // Un total por cada responsable (Mari, Fede, Ventas, etc.)
+    COLS_FACT.responsableCols.forEach(persona => {
+      const suma = rows
+        .filter(r => getResponsable(r) === persona)
+        .reduce((sum, r) => sum + parseAmount(r[COLS_FACT.montoCol]), 0);
+      totalsEl.appendChild(makeTotalCard('A cargo de ' + persona, formatCurrency(suma, 'ARS'), false));
+    });
+
+    if(!rows.length){
+      stateMsg.className = '';
+      stateMsg.style.display = 'block';
+      stateMsg.textContent = 'No hay facturas que coincidan con este filtro.';
+      table.style.display = 'none';
+      return;
+    }
+
+    stateMsg.style.display = 'none';
+    table.style.display = 'table';
   }
 
   checkSession();
