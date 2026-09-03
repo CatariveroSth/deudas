@@ -25,6 +25,11 @@
 
   /* ------------------------------------------------------------
      2) Usuarios permitidos. Agregá los que necesites.
+        "vistas" controla a qué pestañas puede entrar cada uno:
+          - ["ventas","facturas"] → ve las dos pestañas
+          - ["ventas"]            → ve solo Ventas
+          - ["facturas"]          → ve solo Facturas pendientes
+        Si no ponés "vistas", esa persona ve las dos por defecto.
         OJO: esto NO es seguridad real, ver aviso en el chat.
      ------------------------------------------------------------ */
   const USUARIOS = [
